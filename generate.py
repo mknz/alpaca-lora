@@ -6,7 +6,12 @@ import gradio as gr
 import torch
 import transformers
 from peft import PeftModel
-from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    LlamaForCausalLM,
+    LlamaTokenizer,
+)
 
 from utils.callbacks import Iteratorize, Stream
 from utils.prompter import Prompter
@@ -30,6 +35,7 @@ def main(
     prompt_template: str = "",  # The prompt template to use, will default to alpaca.
     server_name: str = "0.0.0.0",  # Allows to listen on all interfaces by providing '0.
     share_gradio: bool = False,
+    automodel: bool = False,
 ):
     base_model = base_model or os.environ.get("BASE_MODEL", "")
     assert (
@@ -37,25 +43,45 @@ def main(
     ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
     prompter = Prompter(prompt_template)
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    if not automodel:
+        tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+
     if device == "cuda":
-        model = LlamaForCausalLM.from_pretrained(
-            base_model,
-            load_in_8bit=load_8bit,
-            torch_dtype=torch.float16,
-            device_map="auto",
-        )
+        if not automodel:
+            model = LlamaForCausalLM.from_pretrained(
+                base_model,
+                load_in_8bit=load_8bit,
+                torch_dtype=torch.float16,
+                device_map="auto",
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model,
+                load_in_8bit=load_8bit,
+                torch_dtype=torch.float16,
+                device_map="auto",
+            )
         model = PeftModel.from_pretrained(
             model,
             lora_weights,
             torch_dtype=torch.float16,
         )
     elif device == "mps":
-        model = LlamaForCausalLM.from_pretrained(
-            base_model,
-            device_map={"": device},
-            torch_dtype=torch.float16,
-        )
+        if not automodel:
+            model = LlamaForCausalLM.from_pretrained(
+                base_model,
+                device_map={"": device},
+                torch_dtype=torch.float16,
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model,
+                device_map={"": device},
+                torch_dtype=torch.float16,
+            )
+
         model = PeftModel.from_pretrained(
             model,
             lora_weights,
@@ -63,9 +89,15 @@ def main(
             torch_dtype=torch.float16,
         )
     else:
-        model = LlamaForCausalLM.from_pretrained(
-            base_model, device_map={"": device}, low_cpu_mem_usage=True
-        )
+        if not automodel:
+            model = LlamaForCausalLM.from_pretrained(
+                base_model, device_map={"": device}, low_cpu_mem_usage=True
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model, device_map={"": device}, low_cpu_mem_usage=True
+            )
+
         model = PeftModel.from_pretrained(
             model,
             lora_weights,
@@ -168,7 +200,7 @@ def main(
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
             gr.components.Slider(
-                minimum=0, maximum=1, value=0.1, label="Temperature"
+                minimum=0, maximum=3, value=0.1, label="Temperature"
             ),
             gr.components.Slider(
                 minimum=0, maximum=1, value=0.75, label="Top p"
@@ -180,7 +212,7 @@ def main(
                 minimum=1, maximum=4, step=1, value=4, label="Beams"
             ),
             gr.components.Slider(
-                minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
+                minimum=1, maximum=2000, step=1, value=64, label="Max tokens"
             ),
             gr.components.Checkbox(label="Stream output"),
         ],
