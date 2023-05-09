@@ -9,6 +9,7 @@ from peft import PeftModel
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    GenerationConfig,
     LlamaForCausalLM,
     LlamaTokenizer,
 )
