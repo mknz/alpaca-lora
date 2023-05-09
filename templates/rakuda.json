@@ -1,0 +1,6 @@
+{
+    "description": "Japanese template used by Rakuda.",
+    "prompt_input": "以下の指示と入力に対して、適切かつ正確に返答してください。\n\n### 指示:\n{instruction}\n\n### 入力:\n{input}\n\n### 返答:\n",
+    "prompt_no_input": "以下の指示に対して、適切かつ正確に返答してください。\n\n### 指示:\n{instruction}\n\n### 返答:\n",
+    "response_split": "### 返答:"
+}
